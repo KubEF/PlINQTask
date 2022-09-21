@@ -66,37 +66,56 @@ namespace PLINQTask
             array.ForEach(a => Console.WriteLine(a));
             Console.WriteLine(sw.Elapsed.TotalSeconds);
         }
+        static string[] ArrayOfWords(string path)
+        {
+            char[] delimiters = new char[] { '.', ',', ';', '\'', '-', ':', '!', '?', '(', ')', '<', '>', '=', '*', '/', '[', ']', '{', '}', '\\', '"', '\r', '\n' };
+
+            using (StreamReader stream = new StreamReader(@path))
+
+            {
+                //Массив слов, приведённых к нижнему регистру
+                string[] arrayOfWords = (from str in delimiters.Aggregate(stream.ReadToEnd(), (ch1, ch2) => ch1.Replace(ch2, ' '))
+                                                                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                                                .AsParallel()
+                                         select str.Replace("– ", "").ToLower())
+                                                                     .ToArray();
+                return arrayOfWords;
+            }
+            
+        }
+        static Dictionary<string, int> DictionaryOfWords(string[] arrayOfWords)
+        {
+            // словарь, где ключ - это слова, а значение - это колличество раз, которое это слово встречается в тексте
+            Dictionary<string, int> WordsCounter = (from word in arrayOfWords.Distinct()
+                                                                             .AsParallel()
+                                                    where word.Length >= 5
+                                                    select (arrayOfWords.Count(a => a == word), word)).OrderByDescending(a => a.Item1)
+                                                                                                       .AsParallel()
+                                                                                                       .ToDictionary(a => a.Item2, a => a.Item1);
+            return WordsCounter.Keys.Take(10).ToDictionary(a => a, a => WordsCounter[a]);
+
+        }
+        static int CountOfLine(string path)
+        {
+            using (StreamReader stream = new StreamReader(@path)) 
+            {
+                string[] arrayOfLine = (from str in stream.ReadToEnd()
+                                                                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                                                                    .AsParallel()
+                                        select str.Replace("– ", "").ToLower())
+                                                                         .ToArray();
+                return arrayOfLine.Length;
+            }
+        }
         static void Main(string[] args)
         {
             // совершенное число - это такое, которое равно сумме всех своих натуральных делителей. Умные математики доказали, что 
             // 2^(p - 1)(2^p - 1) - совершенное, если 2^p - 1 - простое число, более того, все совершенные числа до 
             // 10^(1500) представимы в таком виде (это простая информация из википедии для облегчения решения задачи)
             // можно вычислить, что максимальное p, которое нам понадобится - это p = 12
-            char[] delimiters = new char[] { '.', ',', ';', '\'', '-', ':', '!', '?', '(', ')', '<', '>', '=', '*', '/', '[', ']', '{', '}', '\\', '"', '\r', '\n' };
-
-            using (StreamReader stream = new StreamReader(@"C:\Users\fiska\source\repos\PLINQTask\PLINQTask\Война и мир.txt"))
-
-            {
-                string[] arrayOfWords = (from str in delimiters.Aggregate(stream.ReadToEnd(), (ch1, ch2) => ch1.Replace(ch2, ' '))
-                                                                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                                                .AsParallel()
-                                        select str.Replace("– ", "").ToLower())
-                                                                     .ToArray();
-
-                
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
-                Dictionary< string, int> WordsCounter = (from word in arrayOfWords.Distinct()
-                                                                                    .AsParallel()
-                                                        where word.Length >= 5 
-                                                        select (arrayOfWords.Count(a => a == word), word)).OrderByDescending(a => a.Item1)
-                                                                                                            .AsParallel()
-                                                                                                            .ToDictionary(a => a.Item2, a => a.Item1);
-                sw.Stop();
-
-                WordsCounter.Keys.Take(10).ToList().ForEach(a => Console.WriteLine($"{a} входит {WordsCounter[a]} раз"));
-                Console.WriteLine($"Это дело выполнялось аж {sw.Elapsed.TotalSeconds} секунд");
-            }
+            var dic = DictionaryOfWords(ArrayOfWords(@"C:\Users\fiska\source\repos\PLINQTask\PLINQTask\Война и мир.txt"));
+            dic.Keys.ToList()
+            .ForEach(a => Console.WriteLine($"Слово {a} встречается ровно {dic[a]}"));
         }
     }
 }
